@@ -45,6 +45,7 @@
 #include "xsettings-manager.h"
 #include "fontconfig-monitor.h"
 #include "wm-button-layout-translation.h"
+#include "window-scale.h"
 
 #define GNOME_XSETTINGS_MANAGER_GET_PRIVATE(o) (G_TYPE_INSTANCE_GET_PRIVATE ((o), GNOME_TYPE_XSETTINGS_MANAGER, GnomeXSettingsManagerPrivate))
 
@@ -467,10 +468,10 @@ get_window_scale (GnomeXSettingsManager *manager)
         int window_scale;
         GdkRectangle rect;
         GdkDisplay *display;
-        GdkScreen *screen;
-        int width_mm, height_mm;
-        int monitor_scale;
-        double dpi_x, dpi_y;
+        GdkMonitor *monitor;
+        MonitorSize *monitors;
+        int n_monitors;
+        int i;
 
         interface_settings = g_hash_table_lookup (manager->priv->settings, SCALING_SETTINGS_SCHEMA_FOR_DESKTOP);
         window_scale =
@@ -483,29 +484,20 @@ get_window_scale (GnomeXSettingsManager *manager)
                         goto out;
 
                 display = gdk_display_get_default ();
-                screen = gdk_display_get_default_screen (display);
-                gdk_screen_get_monitor_geometry (screen, 0, &rect);
-                width_mm = gdk_screen_get_monitor_width_mm (screen, 0);
-                height_mm = gdk_screen_get_monitor_height_mm (screen, 0);
-                monitor_scale = gdk_screen_get_monitor_scale_factor (screen, 0);
-
-                /* Somebody encoded the aspect ratio (16/9 or 16/10)
-                 * instead of the physical size */
-                if ((width_mm == 160 && height_mm == 90) ||
-                    (width_mm == 160 && height_mm == 100) ||
-                    (width_mm == 16 && height_mm == 9) ||
-                    (width_mm == 16 && height_mm == 10))
-                        goto out;
-
-                if (width_mm > 0 && height_mm > 0) {
-                        dpi_x = (double)rect.width * monitor_scale / (width_mm / 25.4);
-                        dpi_y = (double)rect.height * monitor_scale / (height_mm / 25.4);
-                        /* We don't completely trust these values so both
-                           must be high, and never pick higher ratio than
-                           2 automatically */
-                        if (dpi_x > HIDPI_LIMIT && dpi_y > HIDPI_LIMIT)
-                                window_scale = 2;
+                n_monitors = gdk_display_get_n_monitors (display);
+                monitors = g_new0 (MonitorSize, MAX (n_monitors, 1));
+                for (i = 0; i < n_monitors; i++) {
+                        monitor = gdk_display_get_monitor (display, i);
+                        gdk_monitor_get_geometry (monitor, &rect);
+                        monitors[i].width = rect.width;
+                        monitors[i].height = rect.height;
+                        monitors[i].width_mm = gdk_monitor_get_width_mm (monitor);
+                        monitors[i].height_mm = gdk_monitor_get_height_mm (monitor);
+                        monitors[i].scale = gdk_monitor_get_scale_factor (monitor);
                 }
+
+                window_scale = get_auto_window_scale (monitors, n_monitors, HIDPI_LIMIT);
+                g_free (monitors);
         }
 
 out:
@@ -734,6 +726,7 @@ xft_callback (GSettings             *settings,
         update_xft_settings (manager);
         queue_notify (manager);
 }
+
 
 static void
 override_callback (GSettings             *settings,

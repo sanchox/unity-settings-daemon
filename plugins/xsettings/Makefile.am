@@ -45,6 +45,26 @@ test_wm_button_layout_translations_LDADD =	\
 	$(SETTINGS_PLUGIN_LIBS)			\
 	$(NULL)
 
+noinst_PROGRAMS += test-window-scale
+TESTS = test-window-scale
+
+test_window_scale_SOURCES =	\
+	test-window-scale.c	\
+	window-scale.c		\
+	window-scale.h		\
+	$(NULL)
+
+test_window_scale_CFLAGS =	\
+	$(SETTINGS_PLUGIN_CFLAGS)	\
+	$(XSETTINGS_CFLAGS)		\
+	$(AM_CFLAGS)			\
+	$(NULL)
+
+test_window_scale_LDADD =	\
+	$(XSETTINGS_LIBS)		\
+	$(SETTINGS_PLUGIN_LIBS)		\
+	$(NULL)
+
 libexec_PROGRAMS = usd-test-xsettings
 
 usd_test_xsettings_SOURCES =	\
@@ -60,6 +80,8 @@ usd_test_xsettings_SOURCES =	\
 	fontconfig-monitor.h	\
 	wm-button-layout-translation.c	\
 	wm-button-layout-translation.h	\
+	window-scale.c		\
+	window-scale.h		\
 	test-xsettings.c
 
 usd_test_xsettings_CFLAGS = $(test_gtk_modules_CFLAGS)
@@ -84,6 +106,8 @@ libxsettings_la_SOURCES = 	\
 	fontconfig-monitor.c	\
 	wm-button-layout-translation.c	\
 	wm-button-layout-translation.h	\
+	window-scale.c		\
+	window-scale.h		\
 	$(NULL)
 
 libxsettings_la_CPPFLAGS =					\
