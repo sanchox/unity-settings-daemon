@@ -264,6 +264,8 @@ struct GnomeXSettingsManagerPrivate
 
         guint              notify_idle_id;
         guint              freeze_settings_migrate_id;
+
+        int                window_scale;
 };
 
 #define GSD_XSETTINGS_ERROR gsd_xsettings_error_quark ()
@@ -711,6 +713,7 @@ update_xft_settings (GnomeXSettingsManager *manager)
         gnome_settings_profile_start (NULL);
 
         xft_settings_get (manager, &settings);
+        manager->priv->window_scale = settings.window_scale;
         xft_settings_set_xsettings (manager, &settings);
         xft_settings_set_xresources (&settings);
         xft_settings_clear (&settings);
@@ -727,6 +730,16 @@ xft_callback (GSettings             *settings,
         queue_notify (manager);
 }
 
+static void
+on_monitors_changed (GdkScreen             *screen,
+                     GnomeXSettingsManager *manager)
+{
+        if (get_window_scale (manager) == manager->priv->window_scale)
+                return;
+
+        update_xft_settings (manager);
+        queue_notify (manager);
+}
 
 static void
 override_callback (GSettings             *settings,
@@ -1152,6 +1165,9 @@ gnome_xsettings_manager_start (GnomeXSettingsManager *manager,
         /* Xft settings */
         update_xft_settings (manager);
 
+        g_signal_connect (gdk_screen_get_default (), "monitors-changed",
+                          G_CALLBACK (on_monitors_changed), manager);
+
         start_fontconfig_monitor (manager);
 
         start_shell_monitor (manager);
@@ -1185,6 +1201,9 @@ gnome_xsettings_manager_stop (GnomeXSettingsManager *manager)
         int i;
 
         g_debug ("Stopping xsettings manager");
+
+        g_signal_handlers_disconnect_by_func (gdk_screen_get_default (),
+                                              on_monitors_changed, manager);
 
         if (p->shell_name_watch_id > 0)
                 g_bus_unwatch_name (p->shell_name_watch_id);
